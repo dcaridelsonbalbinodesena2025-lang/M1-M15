@@ -38,6 +38,25 @@
     </style>
 </head>
 <body>
+
+<script>
+    (function() {
+        const SENHA_MESTRE = "1979";
+        let acesso = sessionStorage.getItem("kcm_auth");
+        if (acesso !== "true") {
+            let entrada = prompt("🔒 ACESSO RESTRITO - K.C.M ULTIMATE\n\nDigite a senha para liberar o sistema:");
+            if (entrada === SENHA_MESTRE) {
+                sessionStorage.setItem("kcm_auth", "true");
+            } else {
+                alert("Senha incorreta!");
+                document.body.innerHTML = "<div style='background:#06090c; height:100vh; display:flex; align-items:center; justify-content:center; color:white; font-family:sans-serif;'><h1>Acesso Negado ❌</h1></div>";
+                window.location.reload();
+                throw new Error("Acesso negado");
+            }
+        }
+    })();
+</script>
+
 <div id="signal-alert"></div>
 <div id="finance-panel">
     <div class="fin-item" ondblclick="editFinance('banca')">BANCA: <span class="fin-value" id="val-banca">R$ 1000.00</span></div>
