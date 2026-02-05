@@ -27,12 +27,14 @@
         #price-tag { position: absolute; right: 0; padding: 6px 12px; font-family: monospace; font-weight: bold; font-size: 16px; border-radius: 6px 0 0 6px; z-index: 100; color: #000; pointer-events: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
-        /* Estilos Extras para Histórico */
         #btn-hist { position: absolute; bottom: 20px; right: 20px; background: var(--panel); border: 1px solid var(--blue); color: #fff; padding: 10px 15px; border-radius: 8px; cursor: pointer; z-index: 1000; }
-        #modal-hist { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 2px solid var(--blue); padding: 20px; border-radius: 12px; z-index: 3000; width: 320px; max-height: 80vh; overflow-y: auto; }
+        #modal-hist { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 2px solid var(--blue); padding: 20px; border-radius: 12px; z-index: 3000; width: 340px; max-height: 85vh; overflow-y: auto; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
         .hist-line { border-bottom: 1px solid #333; padding: 8px 0; font-size: 12px; display: flex; justify-content: space-between; }
         .close-hist { float: right; cursor: pointer; color: var(--red); font-weight: bold; }
         .pdf-btn { width: 100%; margin-top: 15px; background: var(--green); color: #000; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        
+        #detailed-log { margin-top: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 5px; max-height: 200px; overflow-y: auto; border: 1px solid #2d3648; }
+        .log-entry { font-family: monospace; font-size: 10px; padding: 4px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
@@ -63,8 +65,16 @@
 <button id="btn-hist" class="interactive" onclick="toggleHist()">📋 RELATÓRIO</button>
 <div id="modal-hist">
     <span class="close-hist" onclick="toggleHist()">X</span>
-    <h3 style="color:var(--blue); margin-top:0;">Histórico Diário</h3>
+    <center>
+        <div style="color:var(--blue); font-weight:bold; font-size:16px;">K.COM BRAIN〽️</div>
+        <small style="opacity:0.6; font-size:10px;">RELATÓRIO PROFISSIONAL</small>
+    </center>
+    <hr style="border:0; border-top:1px solid #333; margin:10px 0;">
     <div id="hist-content"></div>
+    
+    <div style="font-size: 11px; color: var(--blue); margin-top: 15px; font-weight: bold;">DETALHES DAS ENTRADAS:</div>
+    <div id="detailed-log"></div>
+    
     <button class="pdf-btn" onclick="downloadPDF()">BAIXAR PDF</button>
 </div>
 
@@ -72,20 +82,35 @@
 <div id="price-tag">0.0000</div>
 
 <script>
-    // --- LÓGICA DE ÁUDIO E HISTÓRICO ---
     const audioWin = new Audio('https://www.myinstants.com/media/sounds/applause_8.mp3');
-    const audioQuaQua = new Audio('https://www.myinstants.com/media/sounds/sad-trompete.mp3'); // Som Quá Quá Quá
-    const audioSirene = new Audio('https://www.myinstants.com/media/sounds/siren.mp3'); // Som de Sirene
+    const audioQuaQua = new Audio('https://www.myinstants.com/media/sounds/sad-trompete.mp3'); 
+    const audioSirene = new Audio('https://www.myinstants.com/media/sounds/siren.mp3'); 
     
     let stats = {
         bancaInicial: 1000.00,
         startTime: new Date().toLocaleTimeString(),
         totalEntradas: 0,
+        winsDireto: 0,
         gale1: 0,
         gale2: 0,
         ativosLucro: {},
-        ativoAtual: "Volatility 100"
+        ativoAtual: "Volatility 100",
+        fullLog: [] // Armazena dados para o PDF
     };
+
+    function addDetailedLog(acao, status, cor) {
+        const logContainer = document.getElementById('detailed-log');
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0') + ":" + now.getSeconds().toString().padStart(2,'0');
+        
+        // Salva para o PDF incluindo o Ativo Atual
+        stats.fullLog.push({ time: timeStr, asset: stats.ativoAtual, action: acao, status: status });
+
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        div.innerHTML = `<span>${timeStr} [${stats.ativoAtual}] - ${acao}</span><b style="color:${cor}">${status}</b>`;
+        logContainer.prepend(div);
+    }
 
     function falar(texto) {
         const msg = new SpeechSynthesisUtterance(texto);
@@ -104,22 +129,13 @@
         const total = wins + losses;
         const tax = total > 0 ? ((wins / total) * 100).toFixed(1) : 0;
         
-        let best = "N/A", worst = "N/A";
-        let maxL = -999999, minL = 999999;
-        for(let a in stats.ativosLucro){
-            if(stats.ativosLucro[a] > maxL) { maxL = stats.ativosLucro[a]; best = a; }
-            if(stats.ativosLucro[a] < minL) { minL = stats.ativosLucro[a]; worst = a; }
-        }
-
         document.getElementById('hist-content').innerHTML = `
             <div class="hist-line"><span>Banca Inicial:</span> <b>R$ ${stats.bancaInicial.toFixed(2)}</b></div>
             <div class="hist-line"><span>Lucro Atual:</span> <b style="color:${profit>=0?'var(--green)':'var(--red)'}">R$ ${profit.toFixed(2)}</b></div>
-            <div class="hist-line"><span>Entradas:</span> <b>${stats.totalEntradas}</b></div>
+            <div class="hist-line"><span>Wins Direto:</span> <b style="color:var(--green)">${stats.winsDireto}</b></div>
             <div class="hist-line"><span>Gale 1 usado:</span> <b>${stats.gale1}</b></div>
             <div class="hist-line"><span>Gale 2 usado:</span> <b>${stats.gale2}</b></div>
             <div class="hist-line"><span>Assertividade:</span> <b>${tax}%</b></div>
-            <div class="hist-line"><span>Mais Lucrativo:</span> <b style="color:var(--green)">${best}</b></div>
-            <div class="hist-line"><span>Menos Lucrativo:</span> <b style="color:var(--red)">${worst}</b></div>
             <div class="hist-line"><span>Início:</span> <b>${stats.startTime}</b></div>
         `;
     }
@@ -128,19 +144,63 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const profit = bancaAtual - stats.bancaInicial;
-        doc.setFontSize(18); doc.text("Relatório de Operações K.C.M", 20, 20);
+        
+        // Cabeçalho com Logo
+        doc.setFillColor(17, 21, 28);
+        doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(0, 162, 255);
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "bold");
+        doc.text("K.COM BRAIN〽️", 105, 20, { align: "center" });
+        doc.setFontSize(10);
+        doc.setTextColor(255, 255, 255);
+        doc.text("RELATÓRIO DE PERFORMANCE OPERACIONAL", 105, 30, { align: "center" });
+
+        // Informações Gerais
+        doc.setTextColor(0, 0, 0);
         doc.setFontSize(12);
-        doc.text(`Data: ${new Date().toLocaleDateString()}`, 20, 35);
-        doc.text(`Banca Inicial: R$ ${stats.bancaInicial.toFixed(2)}`, 20, 45);
-        doc.text(`Lucro/Prejuízo: R$ ${profit.toFixed(2)}`, 20, 55);
-        doc.text(`Total de Entradas: ${stats.totalEntradas}`, 20, 65);
-        doc.text(`Wins: ${wins} | Losses: ${losses}`, 20, 75);
-        doc.text(`Gale 1: ${stats.gale1} | Gale 2: ${stats.gale2}`, 20, 85);
-        doc.text(`Ativo mais rentável: ${document.getElementById('asset-display').innerText}`, 20, 95);
-        doc.save("Relatorio_KCM.pdf");
+        doc.text(`Data: ${new Date().toLocaleDateString()} | Início: ${stats.startTime}`, 20, 50);
+        
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, 55, 190, 55);
+
+        doc.setFont("helvetica", "bold");
+        doc.text("RESUMO FINANCEIRO", 20, 65);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Banca Inicial: R$ ${stats.bancaInicial.toFixed(2)}`, 20, 75);
+        doc.text(`Lucro/Prejuízo: R$ ${profit.toFixed(2)}`, 20, 85);
+        doc.text(`Assertividade: ${((wins/(wins+losses||1))*100).toFixed(1)}%`, 20, 95);
+
+        doc.setFont("helvetica", "bold");
+        doc.text("ESTATÍSTICAS DE ENTRADA", 110, 65);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Wins Direto: ${stats.winsDireto}`, 110, 75);
+        doc.text(`Wins em Gale 1: ${stats.gale1}`, 110, 85);
+        doc.text(`Wins em Gale 2: ${stats.gale2}`, 110, 95);
+        doc.text(`Loss Totais: ${losses}`, 110, 105);
+
+        // Log Detalhado no PDF
+        doc.setDrawColor(0, 162, 255);
+        doc.setLineWidth(0.5);
+        doc.line(20, 115, 190, 115);
+        doc.setFont("helvetica", "bold");
+        doc.text("HISTÓRICO DE ENTRADAS DETALHADO", 20, 125);
+        
+        doc.setFontSize(9);
+        doc.setFont("courier", "normal");
+        let yPos = 135;
+        
+        stats.fullLog.forEach((item, index) => {
+            if(yPos > 280) { doc.addPage(); yPos = 20; }
+            // Adicionado Ativo na linha do PDF
+            const line = `${item.time} | ${item.asset.padEnd(20)} | Op: ${item.action.padEnd(5)} | Res: ${item.status}`;
+            doc.text(line, 20, yPos);
+            yPos += 7;
+        });
+
+        doc.save(`Relatorio_KCM_${new Date().getTime()}.pdf`);
     }
 
-    // --- CÓDIGO ORIGINAL ---
     const canvas = document.getElementById('chartCanvas');
     const ctx = canvas.getContext('2d');
     const priceTag = document.getElementById('price-tag');
@@ -177,14 +237,10 @@
     function sel(id, nome) { document.getElementById('asset-display').innerText = nome; stats.ativoAtual = nome; history = []; current = null; bBandsBuffer = []; toggleMenu(); connect(id); }
     function updateAnalisis() { if (history.length < 20) return; const recent = history.slice(-50); let topos = [], fundos = []; for(let i=2; i<recent.length-2; i++) { if(recent[i].high > recent[i-1].high && recent[i].high > recent[i+1].high) topos.push(recent[i].high); if(recent[i].low < recent[i-1].low && recent[i].low < recent[i+1].low) fundos.push(recent[i].low); } resistances = [...new Set(topos)].slice(-4); supports = [...new Set(fundos)].slice(-4); calculateIndicators(); trendDisplay.innerText = detectTrend(); }
     function connect(symbol) { if(socket) socket.close(); socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089'); socket.onopen = () => { socket.send(JSON.stringify({ ticks_history: symbol, end: "latest", count: 100, style: "candles", granularity: 60, subscribe: 1 })); socket.send(JSON.stringify({ ticks_history: symbol, end: "latest", count: 50, style: "candles", granularity: 900 })); }; socket.onmessage = (msg) => { const data = JSON.parse(msg.data); if(data.candles && !data.echo_req.subscribe) { const gran = data.echo_req.granularity; if(gran === 900) { const lastM15 = data.candles[data.candles.length-1]; supM15 = [lastM15.low]; resM15 = [lastM15.high]; trendM15 = lastM15.close > lastM15.open ? "UP" : "DOWN"; } } if(data.candles && data.echo_req.subscribe) { history = data.candles; current = history.pop(); updateAnalisis(); } if(data.ohlc) { lastPrice = parseFloat(data.ohlc.close); const now = new Date(); const curGroup = now.getMinutes() + now.getHours() * 60; if (lastCandleGroup !== -1 && curGroup !== lastCandleGroup) { if (operacaoAtiva) validarResultado(current); if (sinalPendente) { 
-        // GATILHO DE ENTRADA
-        if(emGale === 1) { stats.gale1++; audioQuaQua.play(); falar("Gale 1"); }
-        if(emGale === 2) { stats.gale2++; audioQuaQua.play(); falar("Gale 2"); }
+        if(emGale === 1) { audioQuaQua.play(); falar("Gale 1"); }
+        if(emGale === 2) { audioQuaQua.play(); falar("Gale 2"); }
         stats.totalEntradas++;
-        valorApostaAtual = emGale === 0 ? (bancaAtual * (percentualUso / 100)) : valorApostaAtual * 2; bancaAtual -= valorApostaAtual; updateFinanceUI(); operacaoAtiva = { dir: sinalPendente.dir, precoEntrada: lastPrice, valorRiscado: valorApostaAtual, indexEntrada: history.length }; sinalPendente = null; signalAlert.style.display = 'none'; } if (current && !operacaoAtiva) { history.push({...current}); const pattern = analyzeCandlePatterns(history, history.length - 1); if(pattern) { const ema20 = getEMA(history, 20); let trendOk = (pattern.dir === "CALL" && lastPrice > ema20 && trendM15 === "UP") || (pattern.dir === "PUT" && lastPrice < ema20 && trendM15 === "DOWN"); if(trendOk) { 
-        // ALERTA DE SINAL - SIRENE
-        audioSirene.play();
-        sinalPendente = pattern; document.getElementById('gale-txt').innerText = "GATILHO: " + pattern.name; showScreenMsg(pattern.dir + "!", pattern.dir === "CALL" ? "var(--green)" : "var(--red)"); } } } else if (current) { history.push({...current}); if(operacaoAtiva) operacaoAtiva.indexEntrada = history.length; } current = { time: data.ohlc.open_time, open: lastPrice, high: lastPrice, low: lastPrice, close: lastPrice }; updateAnalisis(); } else if(current) { current.close = lastPrice; current.high = Math.max(current.high, lastPrice); current.low = Math.min(current.low, lastPrice); } lastCandleGroup = curGroup; let minRest = 0; let secRest = 59 - now.getSeconds(); timerTxt.innerText = `${minRest.toString().padStart(2, '0')}:${secRest.toString().padStart(2, '0')}`; } }; }
+        valorApostaAtual = emGale === 0 ? (bancaAtual * (percentualUso / 100)) : valorApostaAtual * 2; bancaAtual -= valorApostaAtual; updateFinanceUI(); operacaoAtiva = { dir: sinalPendente.dir, precoEntrada: lastPrice, valorRiscado: valorApostaAtual, indexEntrada: history.length, galeNivel: emGale }; sinalPendente = null; signalAlert.style.display = 'none'; } if (current && !operacaoAtiva) { history.push({...current}); const pattern = analyzeCandlePatterns(history, history.length - 1); if(pattern) { const ema20 = getEMA(history, 20); let trendOk = (pattern.dir === "CALL" && lastPrice > ema20 && trendM15 === "UP") || (pattern.dir === "PUT" && lastPrice < ema20 && trendM15 === "DOWN"); if(trendOk) { audioSirene.play(); sinalPendente = pattern; document.getElementById('gale-txt').innerText = "GATILHO: " + pattern.name; showScreenMsg(pattern.dir + "!", pattern.dir === "CALL" ? "var(--green)" : "var(--red)"); } } } else if (current) { history.push({...current}); if(operacaoAtiva) operacaoAtiva.indexEntrada = history.length; } current = { time: data.ohlc.open_time, open: lastPrice, high: lastPrice, low: lastPrice, close: lastPrice }; updateAnalisis(); } else if(current) { current.close = lastPrice; current.high = Math.max(current.high, lastPrice); current.low = Math.min(current.low, lastPrice); } lastCandleGroup = curGroup; let minRest = 0; let secRest = 59 - now.getSeconds(); timerTxt.innerText = `${minRest.toString().padStart(2, '0')}:${secRest.toString().padStart(2, '0')}`; } }; }
     function validarResultado(v) { 
         const win = (operacaoAtiva.dir === 'CALL' && v.close > operacaoAtiva.precoEntrada) || (operacaoAtiva.dir === 'PUT' && v.close < operacaoAtiva.precoEntrada); 
         const profit = operacaoAtiva.valorRiscado * (payoutAtivo/100);
@@ -192,14 +248,22 @@
             audioWin.play();
             wins++; bancaAtual += (operacaoAtiva.valorRiscado * (1 + payoutAtivo/100)); 
             stats.ativosLucro[stats.ativoAtual] = (stats.ativosLucro[stats.ativoAtual] || 0) + profit;
+            
+            let statusTxt = "GREEN";
+            if(operacaoAtiva.galeNivel === 0) { stats.winsDireto++; statusTxt = "GREEN"; }
+            else if(operacaoAtiva.galeNivel === 1) { stats.gale1++; statusTxt = "G1 GREEN"; }
+            else if(operacaoAtiva.galeNivel === 2) { stats.gale2++; statusTxt = "G2 GREEN"; }
+            
+            addDetailedLog(operacaoAtiva.dir, statusTxt, "var(--green)");
             emGale = 0; operacaoAtiva = null; document.getElementById('gale-txt').innerText = "WIN ✅"; 
         } else if(emGale < 2) { 
             emGale++; sinalPendente = { dir: operacaoAtiva.dir, name: "GALE " + emGale }; 
             stats.ativosLucro[stats.ativoAtual] = (stats.ativosLucro[stats.ativoAtual] || 0) - operacaoAtiva.valorRiscado;
         } else { 
-            audioQuaQua.play(); // QUÁ QUÁ QUÁ NO LOSS
+            audioQuaQua.play(); 
             losses++; 
             stats.ativosLucro[stats.ativoAtual] = (stats.ativosLucro[stats.ativoAtual] || 0) - operacaoAtiva.valorRiscado;
+            addDetailedLog(operacaoAtiva.dir, "LOSS", "var(--red)");
             emGale = 0; operacaoAtiva = null; document.getElementById('gale-txt').innerText = "LOSS ❌"; 
         } 
         updateFinanceUI(); document.getElementById('win-c').innerText = wins; document.getElementById('loss-c').innerText = losses; 
@@ -215,11 +279,10 @@
         const maxP = Math.max(...prices), minP = Math.min(...prices), range = (maxP - minP) || 0.0001;
         const scaleY = (canvas.height * 0.7 / range) * zoomY, centerY = canvas.height / 2 + dragY, midP = (maxP + minP) / 2, offX = (canvas.width - 150) - (all.length * spacing) + dragX;
         
-        // --- DESENHO EMA 200 (ESTÉTICA) ---
         if(all.length >= 200) {
             ctx.beginPath();
             ctx.strokeStyle = "var(--yellow)";
-            ctx.lineWidth = 2.5; // Espessura média
+            ctx.lineWidth = 2.5;
             ctx.setLineDash([]);
             for(let i = 200; i < all.length; i++) {
                 const emaVal = getEMA(all.slice(0, i+1), 200);
@@ -276,4 +339,3 @@
 </script>
 </body>
 </html>
-
