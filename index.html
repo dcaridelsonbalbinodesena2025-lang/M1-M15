@@ -344,7 +344,24 @@
         const prices = all.flatMap(c => [c.high, c.low]);
         const maxP = Math.max(...prices), minP = Math.min(...prices), range = (maxP - minP) || 0.0001;
         const scaleY = (canvas.height * 0.7 / range) * zoomY, centerY = canvas.height / 2 + dragY, midP = (maxP + minP) / 2, offX = (canvas.width - 150) - (all.length * spacing) + dragX;
+        // --- DESENHAR SMA 20 (MICRO-TENDÊNCIA) ---
+if(all.length >= 20) {
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; // Cor branca com transparência
+    ctx.lineWidth = 3;
+    ctx.setLineDash([2, 2]); // Linha pontilhada para não poluir o gráfico
+    
+    for(let i = 20; i < all.length; i++) {
+        const smaVal = getEMA(all.slice(0, i+1), 20); // Usando a lógica de média do seu código
+        const x = offX + (i * spacing);
+        const y = centerY + (midP - smaVal) * scaleY;
         
+        if(i === 20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]); // Reset do pontilhado
+}
+
         if(all.length >= 200) {
             ctx.beginPath();
             ctx.strokeStyle = "var(--yellow)";
