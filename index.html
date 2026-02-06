@@ -224,40 +224,28 @@
     let pulseOpacity = 1, pulseDir = -0.05;
     let initialDist = null;
 
-    // --- FUNÇÃO DE ANÁLISE COM OS FILTROS DE PREVISÃO DE RISCO ---
     function analyzeCandlePatterns(list, idx) { 
         if(list.length < 21 || idx < 1) return null; 
-        
         const last = list[idx]; 
         const prev = list[idx - 1]; 
         const body = Math.abs(last.close - last.open); 
         const totalSize = last.high - last.low;
-
-        // 1. FILTRO DE PREVISÃO: BAIXA VOLATILIDADE (EVITAR GALE 2)
         let avgTotalSize = 0;
         for(let i = idx-10; i < idx; i++) { avgTotalSize += (list[i].high - list[i].low); }
         avgTotalSize /= 10;
         if (totalSize < (avgTotalSize * 0.7)) return null; 
-
-        // 2. FILTRO ANTI-DOJI E VELA FRACA
         if (body < (totalSize * 0.40) || body === 0) return null;
-
-        // 3. TENDÊNCIA SMA 20 (Só entra a favor da micro-tendência)
         let sma20 = 0;
         for(let i = idx-20; i <= idx; i++) sma20 += list[i].close;
         sma20 /= 21;
-
         const upperWick = last.high - Math.max(last.open, last.close); 
         const lowerWick = Math.min(last.open, last.close) - last.low; 
         const isLow = last.low <= Math.min(prev.low, list[idx-2]?.low || 999999); 
         const isHigh = last.high >= Math.max(prev.high, list[idx-2]?.high || 0); 
-
-        // Gatilhos
         if (lowerWick > body * 2 && upperWick < body * 0.5 && isLow && last.close > sma20) return { name: "MARTELO", dir: "CALL" }; 
         if (upperWick > body * 2 && lowerWick < body * 0.5 && isHigh && last.close < sma20) return { name: "ESTRELA", dir: "PUT" }; 
         if (last.close > last.open && prev.open > prev.close && last.close > prev.open && last.close > sma20) return { name: "ENGOLFO", dir: "CALL" }; 
         if (last.open > last.close && prev.close > prev.open && last.close < prev.open && last.close < sma20) return { name: "ENGOLFO", dir: "PUT" }; 
-        
         return null; 
     }
 
@@ -291,6 +279,8 @@
         } 
         updateFinanceUI(); document.getElementById('win-c').innerText = wins; document.getElementById('loss-c').innerText = losses; 
     }
+    
+    // CORREÇÃO DO ZOOM E ARRASTE
     function draw() {
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
         if(!current) { requestAnimationFrame(draw); return; }
@@ -299,15 +289,57 @@
         const prices = all.flatMap(c => [c.high, c.low]);
         const maxP = Math.max(...prices), minP = Math.min(...prices), range = (maxP - minP) || 0.0001;
         const scaleY = (canvas.height * 0.7 / range) * zoomY, centerY = canvas.height / 2 + dragY, midP = (maxP + minP) / 2, offX = (canvas.width - 150) - (all.length * spacing) + dragX;
+        
         if(all.length >= 200) { ctx.beginPath(); ctx.strokeStyle = "var(--yellow)"; ctx.lineWidth = 2.5; for(let i = 200; i < all.length; i++) { const emaVal = getEMA(all.slice(0, i+1), 200); const x = offX + (i * spacing); const y = centerY + (midP - emaVal) * scaleY; if(i === 200) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke(); }
         if(bBandsBuffer.length > 1) { ctx.beginPath(); ctx.fillStyle = "rgba(0, 162, 255, 0.02)"; for(let i = 0; i < bBandsBuffer.length; i++) { let x = offX + (bBandsBuffer[i].index * spacing); let y = centerY + (midP - bBandsBuffer[i].upper) * scaleY; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } for(let i = bBandsBuffer.length - 1; i >= 0; i--) { let x = offX + (bBandsBuffer[i].index * spacing); let y = centerY + (midP - bBandsBuffer[i].lower) * scaleY; ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); }
+        
         all.forEach((c, i) => {
             const x = offX + (i * spacing), yO = centerY + (midP - c.open) * scaleY, yC = centerY + (midP - c.close) * scaleY, yH = centerY + (midP - c.high) * scaleY, yL = centerY + (midP - c.low) * scaleY;
             const isGatilho = (sinalPendente && i === all.length - 1); if(isGatilho) ctx.globalAlpha = pulseOpacity; ctx.strokeStyle = c.close >= c.open ? "#00ff88" : "#ff3355"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, yH); ctx.lineTo(x, yL); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(x - (spacing*0.7)/2, Math.min(yO, yC), spacing*0.7, Math.max(2, Math.abs(yO - yC))); ctx.globalAlpha = 1.0;
         });
         const currentY = centerY + (midP - lastPrice) * scaleY; priceTag.style.top = (currentY - 15) + "px"; priceTag.style.background = lastPrice >= current.open ? "#00ff88" : "#ff3355"; priceTag.innerText = lastPrice.toFixed(midP > 10 ? 2 : 5); requestAnimationFrame(draw);
     }
-    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; }); window.addEventListener('mousemove', e => { if(isDragging) { dragX += e.clientX - lastX; dragY += e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; } }); window.addEventListener('mouseup', () => isDragging = false); canvas.addEventListener('wheel', e => { e.preventDefault(); const delta = e.deltaY > 0 ? 0.9 : 1.1; spacing = Math.min(Math.max(spacing * delta, 5), 150); zoomY = Math.min(Math.max(zoomY * delta, 0.1), 30); }, { passive: false });
+    
+    // EVENTOS DE INTERAÇÃO CORRIGIDOS
+    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; }); 
+    window.addEventListener('mousemove', e => { if(isDragging) { dragX += e.clientX - lastX; dragY += e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; } }); 
+    window.addEventListener('mouseup', () => isDragging = false); 
+    canvas.addEventListener('wheel', e => { 
+        e.preventDefault(); 
+        const zoomSpeed = 0.1;
+        if(e.deltaY < 0) { // Zoom In
+            spacing *= 1.1;
+            zoomY *= 1.1;
+        } else { // Zoom Out
+            spacing *= 0.9;
+            zoomY *= 0.9;
+        }
+        spacing = Math.min(Math.max(spacing, 2), 200);
+        zoomY = Math.min(Math.max(zoomY, 0.05), 50);
+    }, { passive: false });
+
+    // SUPORTE PARA TOUCH (CELULAR)
+    canvas.addEventListener('touchstart', e => { 
+        if(e.touches.length === 1) {
+            isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+        } else if(e.touches.length === 2) {
+            initialDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+        }
+    });
+    canvas.addEventListener('touchmove', e => {
+        if(isDragging && e.touches.length === 1) {
+            dragX += e.touches[0].clientX - lastX; dragY += e.touches[0].clientY - lastY;
+            lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+        } else if(e.touches.length === 2) {
+            const currentDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            const delta = currentDist / initialDist;
+            spacing = Math.min(Math.max(spacing * delta, 2), 200);
+            zoomY = Math.min(Math.max(zoomY * delta, 0.05), 50);
+            initialDist = currentDist;
+        }
+    }, { passive: false });
+    canvas.addEventListener('touchend', () => { isDragging = false; initialDist = null; });
+
     connect('R_100'); draw(); updateFinanceUI();
 </script>
 </body>
