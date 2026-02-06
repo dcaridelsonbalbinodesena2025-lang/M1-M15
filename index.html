@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name='viewport' content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'/>
-    <title>K.C.M ULTIMATE - M1/M15 ULTRA FILTER</title>
+    <title>K.C.M ULTIMATE - M1/M15</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root { --bg: #06090c; --green: #00ff88; --red: #ff3355; --panel: #11151c; --blue: #00a2ff; --yellow: #ffcc00; --purple: #a020f0; }
@@ -26,11 +26,15 @@
         #signal-alert { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 55px; font-weight: bold; text-shadow: 0 0 20px #000; z-index: 2000; pointer-events: none; display: none; text-align: center; }
         #price-tag { position: absolute; right: 0; padding: 6px 12px; font-family: monospace; font-weight: bold; font-size: 16px; border-radius: 6px 0 0 6px; z-index: 100; color: #000; pointer-events: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
+        
+        /* AJUSTE NA ALTURA DO BOTÃO DE RELATÓRIO */
         #btn-hist { position: absolute; bottom: 80px; right: 20px; background: var(--panel); border: 1px solid var(--blue); color: #fff; padding: 10px 10px; border-radius: 8px; cursor: pointer; z-index: 1000; }
+        
         #modal-hist { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 2px solid var(--blue); padding: 20px; border-radius: 12px; z-index: 3000; width: 340px; max-height: 85vh; overflow-y: auto; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
         .hist-line { border-bottom: 1px solid #333; padding: 8px 0; font-size: 12px; display: flex; justify-content: space-between; }
         .close-hist { float: right; cursor: pointer; color: var(--red); font-weight: bold; }
         .pdf-btn { width: 100%; margin-top: 15px; background: var(--green); color: #000; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        
         #detailed-log { margin-top: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 5px; max-height: 200px; overflow-y: auto; border: 1px solid #2d3648; }
         .log-entry { font-family: monospace; font-size: 10px; padding: 4px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
     </style>
@@ -88,8 +92,10 @@
     </center>
     <hr style="border:0; border-top:1px solid #333; margin:10px 0;">
     <div id="hist-content"></div>
+    
     <div style="font-size: 11px; color: var(--blue); margin-top: 15px; font-weight: bold;">DETALHES DAS ENTRADAS:</div>
     <div id="detailed-log"></div>
+    
     <button class="pdf-btn" onclick="downloadPDF()">BAIXAR PDF</button>
 </div>
 
@@ -110,14 +116,17 @@
         gale2: 0,
         ativosLucro: {},
         ativoAtual: "Volatility 100",
-        fullLog: [] 
+        fullLog: [] // Armazena dados para o PDF
     };
 
     function addDetailedLog(acao, status, cor) {
         const logContainer = document.getElementById('detailed-log');
         const now = new Date();
         const timeStr = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0') + ":" + now.getSeconds().toString().padStart(2,'0');
+        
+        // Salva para o PDF incluindo o Ativo Atual
         stats.fullLog.push({ time: timeStr, asset: stats.ativoAtual, action: acao, status: status });
+
         const div = document.createElement('div');
         div.className = 'log-entry';
         div.innerHTML = `<span>${timeStr} [${stats.ativoAtual}] - ${acao}</span><b style="color:${cor}">${status}</b>`;
@@ -140,6 +149,7 @@
         const profit = bancaAtual - stats.bancaInicial;
         const total = wins + losses;
         const tax = total > 0 ? ((wins / total) * 100).toFixed(1) : 0;
+        
         document.getElementById('hist-content').innerHTML = `
             <div class="hist-line"><span>Banca Inicial:</span> <b>R$ ${stats.bancaInicial.toFixed(2)}</b></div>
             <div class="hist-line"><span>Lucro Atual:</span> <b style="color:${profit>=0?'var(--green)':'var(--red)'}">R$ ${profit.toFixed(2)}</b></div>
@@ -155,6 +165,8 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const profit = bancaAtual - stats.bancaInicial;
+        
+        // Cabeçalho com Logo
         doc.setFillColor(17, 21, 28);
         doc.rect(0, 0, 210, 40, 'F');
         doc.setTextColor(0, 162, 255);
@@ -164,17 +176,22 @@
         doc.setFontSize(10);
         doc.setTextColor(255, 255, 255);
         doc.text("RELATÓRIO DE PERFORMANCE OPERACIONAL", 105, 30, { align: "center" });
+
+        // Informações Gerais
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(12);
         doc.text(`Data: ${new Date().toLocaleDateString()} | Início: ${stats.startTime}`, 20, 50);
+        
         doc.setDrawColor(200, 200, 200);
         doc.line(20, 55, 190, 55);
+
         doc.setFont("helvetica", "bold");
         doc.text("RESUMO FINANCEIRO", 20, 65);
         doc.setFont("helvetica", "normal");
         doc.text(`Banca Inicial: R$ ${stats.bancaInicial.toFixed(2)}`, 20, 75);
         doc.text(`Lucro/Prejuízo: R$ ${profit.toFixed(2)}`, 20, 85);
         doc.text(`Assertividade: ${((wins/(wins+losses||1))*100).toFixed(1)}%`, 20, 95);
+
         doc.setFont("helvetica", "bold");
         doc.text("ESTATÍSTICAS DE ENTRADA", 110, 65);
         doc.setFont("helvetica", "normal");
@@ -182,20 +199,26 @@
         doc.text(`Wins em Gale 1: ${stats.gale1}`, 110, 85);
         doc.text(`Wins em Gale 2: ${stats.gale2}`, 110, 95);
         doc.text(`Loss Totais: ${losses}`, 110, 105);
+
+        // Log Detalhado no PDF
         doc.setDrawColor(0, 162, 255);
         doc.setLineWidth(0.5);
         doc.line(20, 115, 190, 115);
         doc.setFont("helvetica", "bold");
         doc.text("HISTÓRICO DE ENTRADAS DETALHADO", 20, 125);
+        
         doc.setFontSize(9);
         doc.setFont("courier", "normal");
         let yPos = 135;
+        
         stats.fullLog.forEach((item, index) => {
             if(yPos > 280) { doc.addPage(); yPos = 20; }
+            // Adicionado Ativo na linha do PDF
             const line = `${item.time} | ${item.asset.padEnd(20)} | Op: ${item.action.padEnd(5)} | Res: ${item.status}`;
             doc.text(line, 20, yPos);
             yPos += 7;
         });
+
         doc.save(`Relatorio_KCM_${new Date().getTime()}.pdf`);
     }
 
@@ -223,123 +246,161 @@
     let fractals = [];
     let pulseOpacity = 1, pulseDir = -0.05;
     let initialDist = null;
-
     function analyzeCandlePatterns(list, idx) { 
-        if(list.length < 21 || idx < 1) return null; 
+        if(list.length < 5 || idx < 1) return null; 
         const last = list[idx]; 
         const prev = list[idx - 1]; 
         const body = Math.abs(last.close - last.open); 
         const totalSize = last.high - last.low;
-        let avgTotalSize = 0;
-        for(let i = idx-10; i < idx; i++) { avgTotalSize += (list[i].high - list[i].low); }
-        avgTotalSize /= 10;
-        if (totalSize < (avgTotalSize * 0.7)) return null; 
-        if (body < (totalSize * 0.40) || body === 0) return null;
-        let sma20 = 0;
-        for(let i = idx-20; i <= idx; i++) sma20 += list[i].close;
-        sma20 /= 21;
+        
+        // FILTRO DE CORPO REAL (Mínimo 40% da vela total)
+        if(totalSize > 0 && (body / totalSize) < 0.4) return null;
+
         const upperWick = last.high - Math.max(last.open, last.close); 
         const lowerWick = Math.min(last.open, last.close) - last.low; 
         const isLow = last.low <= Math.min(prev.low, list[idx-2]?.low || 999999); 
         const isHigh = last.high >= Math.max(prev.high, list[idx-2]?.high || 0); 
-        if (lowerWick > body * 2 && upperWick < body * 0.5 && isLow && last.close > sma20) return { name: "MARTELO", dir: "CALL" }; 
-        if (upperWick > body * 2 && lowerWick < body * 0.5 && isHigh && last.close < sma20) return { name: "ESTRELA", dir: "PUT" }; 
-        if (last.close > last.open && prev.open > prev.close && last.close > prev.open && last.close > sma20) return { name: "ENGOLFO", dir: "CALL" }; 
-        if (last.open > last.close && prev.close > prev.open && last.close < prev.open && last.close < sma20) return { name: "ENGOLFO", dir: "PUT" }; 
+        if (lowerWick > body * 2 && upperWick < body * 0.5 && isLow) return { name: "MARTELO", dir: "CALL" }; 
+        if (upperWick > body * 2 && lowerWick < body * 0.5 && isHigh) return { name: "ESTRELA", dir: "PUT" }; 
+        if (last.close > last.open && prev.open > prev.close && last.close > prev.open) return { name: "ENGOLFO", dir: "CALL" }; 
+        if (last.open > last.close && prev.close > prev.open && last.close < prev.open) return { name: "ENGOLFO", dir: "PUT" }; 
         return null; 
     }
-
     function showScreenMsg(txt, color) { signalAlert.innerText = txt; signalAlert.style.color = color; signalAlert.style.display = 'block'; setTimeout(() => { signalAlert.style.display = 'none'; }, 8000); }
     function detectTrend() { if(history.length < 20) return "ESTÁVEL"; const sum = history.slice(-10).reduce((a, b) => a + (b.close > b.open ? 1 : -1), 0); let msg = sum > 2 ? "TENDÊNCIA: ALTA 📈" : (sum < -2 ? "TENDÊNCIA: BAIXA 📉" : "MERCADO LATERALIZADO"); return msg + " | M15: " + (trendM15 === "UP" ? "ALTA" : "BAIXA"); }
     function updateFinanceUI() { document.getElementById('val-banca').innerText = `R$ ${bancaAtual.toFixed(2)}`; document.getElementById('val-payout').innerText = `${payoutAtivo}%`; document.getElementById('val-percent').innerText = `${percentualUso}%`; }
     function editFinance(tipo) { let n = prompt(`Novo valor para ${tipo}:`); if(n) { if(tipo==='banca') { bancaAtual = parseFloat(n); stats.bancaInicial = bancaAtual; } if(tipo==='payout') payoutAtivo = parseFloat(n); if(tipo==='percent') percentualUso = parseFloat(n); updateFinanceUI(); } }
-    function calculateIndicators() { if(history.length < 10) return; const all = [...history, current]; fractals = []; for(let i = 2; i < all.length - 2; i++) { if(all[i].high > all[i-1].high && all[i].high > all[i-2].high && all[i].high > all[i+1].high && all[i].high > all[i+2].high) { fractals.push({ index: i, type: 'top', price: all[i].high }); } if(all[i].low < all[i-1].low && all[i].low < all[i-2].low && all[i].low < all[i+1].low && all[i].low < all[i+2].low) { fractals.push({ index: i, type: 'bottom', price: all[i].low }); } } bBandsBuffer = calculateBBands(all); }
+    function calculateIndicators() { if(history.length < 10) return; const all = [...history, current]; fractals = []; for(let i = 2; i < all.length - 2; i++) { const pattern = analyzeCandlePatterns(all, i); if(all[i].high > all[i-1].high && all[i].high > all[i-2].high && all[i].high > all[i+1].high && all[i].high > all[i+2].high) { fractals.push({ index: i, type: 'top', price: all[i].high, label: pattern ? pattern.name : "" }); } if(all[i].low < all[i-2].low && all[i].low < (all[i-1].low) && all[i].low < all[i+1].low && all[i].low < all[i+2].low) { fractals.push({ index: i, type: 'bottom', price: all[i].low, label: pattern ? pattern.name : "" }); } } bBandsBuffer = calculateBBands(all); }
     const LISTA_COMPLETA = [ { id: "NONE", nome: "❌ DESATIVAR SLOT" }, { id: "1HZ10V", nome: "📈 Volatility 10 (1s)" }, { id: "1HZ25V", nome: "📈 Volatility 25 (1s)" }, { id: "1HZ50V", nome: "📈 Volatility 50 (1s)" }, { id: "1HZ75V", nome: "📈 Volatility 75 (1s)" }, { id: "1HZ100V", nome: "📈 Volatility 100 (1s)" }, { id: "R_10", nome: "📊 Volatility 10" }, { id: "R_25", nome: "📊 Volatility 25" }, { id: "R_50", nome: "📊 Volatility 50" }, { id: "R_75", nome: "📊 Volatility 75" }, { id: "R_100", nome: "📊 Volatility 100" }, { id: "JD10", nome: "🚀 Jump 10" }, { id: "JD25", nome: "🚀 Jump 25" }, { id: "JD50", nome: "🚀 Jump 50" }, { id: "JD75", nome: "🚀 Jump 75" }, { id: "JD100", nome: "🚀 Jump 100" }, { id: "BOOM300", nome: "💥 Boom 300" }, { id: "BOOM500", nome: "💥 Boom 500" }, { id: "BOOM1000", nome: "💥 Boom 1000" }, { id: "CRASH300", nome: "📉 Crash 300" }, { id: "CRASH500", nome: "📉 Crash 500" }, { id: "CRASH1000", nome: "📉 Crash 1000" }, { id: "ST50", nome: "🎢 Step Index" }, { id: "frxEURUSD", nome: "💱 EUR/USD" }, { id: "frxGBPUSD", nome: "💱 GBP/USD" }, { id: "frxUSDJPY", nome: "💱 USD/JPY" }, { id: "frxAUDUSD", nome: "💱 AUD/USD" }, { id: "frxUSDCAD", nome: "💱 USD/CAD" }, { id: "frxUSDCHF", nome: "💱 USD/CHF" }, { id: "frxEURGBP", nome: "💱 EUR/GBP" }, { id: "frxEURJPY", nome: "💱 EUR/JPY" }, { id: "frxXAUUSD", nome: "🪙 OURO (XAU)" }, { id: "cryBTCUSD", nome: "₿ BITCOIN" } ];
     const menu = document.getElementById('menu'); LISTA_COMPLETA.forEach(ativo => { const div = document.createElement('div'); div.className = 'item'; div.innerHTML = ativo.nome; div.onclick = () => sel(ativo.id, ativo.nome); menu.appendChild(div); });
     function toggleMenu() { menu.classList.toggle('open'); }
     function sel(id, nome) { document.getElementById('asset-display').innerText = nome; stats.ativoAtual = nome; history = []; current = null; bBandsBuffer = []; toggleMenu(); connect(id); }
     function updateAnalisis() { if (history.length < 20) return; const recent = history.slice(-50); let topos = [], fundos = []; for(let i=2; i<recent.length-2; i++) { if(recent[i].high > recent[i-1].high && recent[i].high > recent[i+1].high) topos.push(recent[i].high); if(recent[i].low < recent[i-1].low && recent[i].low < recent[i+1].low) fundos.push(recent[i].low); } resistances = [...new Set(topos)].slice(-4); supports = [...new Set(fundos)].slice(-4); calculateIndicators(); trendDisplay.innerText = detectTrend(); }
-    function connect(symbol) { if(socket) socket.close(); socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089'); socket.onopen = () => { socket.send(JSON.stringify({ ticks_history: symbol, end: "latest", count: 100, style: "candles", granularity: 60, subscribe: 1 })); socket.send(JSON.stringify({ ticks_history: symbol, end: "latest", count: 50, style: "candles", granularity: 900 })); }; socket.onmessage = (msg) => { const data = JSON.parse(msg.data); if(data.candles && !data.echo_req.subscribe) { const gran = data.echo_req.granularity; if(gran === 900) { const lastM15 = data.candles[data.candles.length-1]; supM15 = [lastM15.low]; resM15 = [lastM15.high]; trendM15 = lastM15.close > lastM15.open ? "UP" : "DOWN"; } } if(data.candles && data.echo_req.subscribe) { history = data.candles; current = history.pop(); updateAnalisis(); } if(data.ohlc) { lastPrice = parseFloat(data.ohlc.close); const now = new Date(); const curGroup = now.getMinutes() + now.getHours() * 60; if (lastCandleGroup !== -1 && curGroup !== lastCandleGroup) { if (operacaoAtiva) validarResultado(current); if (sinalPendente) { if(emGale === 1) { audioQuaQua.play(); falar("Gale 1"); } if(emGale === 2) { audioQuaQua.play(); falar("Gale 2"); } stats.totalEntradas++; valorApostaAtual = emGale === 0 ? (bancaAtual * (percentualUso / 100)) : valorApostaAtual * 2; bancaAtual -= valorApostaAtual; updateFinanceUI(); operacaoAtiva = { dir: sinalPendente.dir, precoEntrada: lastPrice, valorRiscado: valorApostaAtual, indexEntrada: history.length, galeNivel: emGale }; sinalPendente = null; signalAlert.style.display = 'none'; } if (current && !operacaoAtiva) { history.push({...current}); const pattern = analyzeCandlePatterns(history, history.length - 1); if(pattern) { const ema20 = getEMA(history, 20); let trendOk = (pattern.dir === "CALL" && lastPrice > ema20 && trendM15 === "UP") || (pattern.dir === "PUT" && lastPrice < ema20 && trendM15 === "DOWN"); if(trendOk) { audioSirene.play(); sinalPendente = pattern; document.getElementById('gale-txt').innerText = "GATILHO: " + pattern.name; showScreenMsg(pattern.dir + "!", pattern.dir === "CALL" ? "var(--green)" : "var(--red)"); } } } else if (current) { history.push({...current}); if(operacaoAtiva) operacaoAtiva.indexEntrada = history.length; } current = { time: data.ohlc.open_time, open: lastPrice, high: lastPrice, low: lastPrice, close: lastPrice }; updateAnalisis(); } else if(current) { current.close = lastPrice; current.high = Math.max(current.high, lastPrice); current.low = Math.min(current.low, lastPrice); } lastCandleGroup = curGroup; let secRest = 59 - now.getSeconds(); timerTxt.innerText = `00:${secRest.toString().padStart(2, '0')}`; } }; }
+    function connect(symbol) { if(socket) socket.close(); socket = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089'); socket.onopen = () => { socket.send(JSON.stringify({ ticks_history: symbol, end: "latest", count: 100, style: "candles", granularity: 60, subscribe: 1 })); socket.send(JSON.stringify({ ticks_history: symbol, end: "latest", count: 50, style: "candles", granularity: 900 })); }; socket.onmessage = (msg) => { const data = JSON.parse(msg.data); if(data.candles && !data.echo_req.subscribe) { const gran = data.echo_req.granularity; if(gran === 900) { const lastM15 = data.candles[data.candles.length-1]; supM15 = [lastM15.low]; resM15 = [lastM15.high]; trendM15 = lastM15.close > lastM15.open ? "UP" : "DOWN"; } } if(data.candles && data.echo_req.subscribe) { history = data.candles; current = history.pop(); updateAnalisis(); } if(data.ohlc) { lastPrice = parseFloat(data.ohlc.close); const now = new Date(); const curGroup = now.getMinutes() + now.getHours() * 60; if (lastCandleGroup !== -1 && curGroup !== lastCandleGroup) { if (operacaoAtiva) validarResultado(current); if (sinalPendente) { 
+        if(emGale === 1) { audioQuaQua.play(); falar("Gale 1"); }
+        if(emGale === 2) { audioQuaQua.play(); falar("Gale 2"); }
+        stats.totalEntradas++;
+        valorApostaAtual = emGale === 0 ? (bancaAtual * (percentualUso / 100)) : valorApostaAtual * 2; bancaAtual -= valorApostaAtual; updateFinanceUI(); operacaoAtiva = { dir: sinalPendente.dir, precoEntrada: lastPrice, valorRiscado: valorApostaAtual, indexEntrada: history.length, galeNivel: emGale }; sinalPendente = null; signalAlert.style.display = 'none'; } if (current && !operacaoAtiva) { history.push({...current}); 
+        
+        // --- FILTROS DE VOLUME E MÉDIA 20 ---
+        const pattern = analyzeCandlePatterns(history, history.length - 1); 
+        if(pattern) { 
+            const ema20 = getEMA(history, 20); 
+            const lastCandle = history[history.length - 1];
+            const candleSize = lastCandle.high - lastCandle.low;
+            
+            // Cálculo do Volume Médio (10 velas)
+            const last10 = history.slice(-10);
+            const avgVol = last10.reduce((sum, c) => sum + (c.high - c.low), 0) / 10;
+            
+            // Validações dos Novos Filtros:
+            // 1. Filtro SMA 20 (Micro-tendência)
+            const trendOk = (pattern.dir === "CALL" && lastPrice > ema20) || (pattern.dir === "PUT" && lastPrice < ema20);
+            // 2. Filtro de Volume (Mínimo 70% da média)
+            const volOk = candleSize >= (avgVol * 0.7);
+
+            if(trendOk && volOk) { 
+                audioSirene.play(); 
+                sinalPendente = pattern; 
+                document.getElementById('gale-txt').innerText = "GATILHO: " + pattern.name; 
+                showScreenMsg(pattern.dir + "!", pattern.dir === "CALL" ? "var(--green)" : "var(--red)"); 
+            } 
+        } 
+        } else if (current) { history.push({...current}); if(operacaoAtiva) operacaoAtiva.indexEntrada = history.length; } current = { time: data.ohlc.open_time, open: lastPrice, high: lastPrice, low: lastPrice, close: lastPrice }; updateAnalisis(); } else if(current) { current.close = lastPrice; current.high = Math.max(current.high, lastPrice); current.low = Math.min(current.low, lastPrice); } lastCandleGroup = curGroup; let minRest = 0; let secRest = 59 - now.getSeconds(); timerTxt.innerText = `${minRest.toString().padStart(2, '0')}:${secRest.toString().padStart(2, '0')}`; } }; }
     function validarResultado(v) { 
         const win = (operacaoAtiva.dir === 'CALL' && v.close > operacaoAtiva.precoEntrada) || (operacaoAtiva.dir === 'PUT' && v.close < operacaoAtiva.precoEntrada); 
         const profit = operacaoAtiva.valorRiscado * (payoutAtivo/100);
         if(win) { 
-            audioWin.play(); wins++; bancaAtual += (operacaoAtiva.valorRiscado * (1 + payoutAtivo/100)); 
+            audioWin.play();
+            wins++; bancaAtual += (operacaoAtiva.valorRiscado * (1 + payoutAtivo/100)); 
             stats.ativosLucro[stats.ativoAtual] = (stats.ativosLucro[stats.ativoAtual] || 0) + profit;
-            let statusTxt = operacaoAtiva.galeNivel === 0 ? "GREEN" : "G" + operacaoAtiva.galeNivel + " GREEN";
-            if(operacaoAtiva.galeNivel === 0) stats.winsDireto++; else if(operacaoAtiva.galeNivel === 1) stats.gale1++; else stats.gale2++;
+            
+            let statusTxt = "GREEN";
+            if(operacaoAtiva.galeNivel === 0) { stats.winsDireto++; statusTxt = "GREEN"; }
+            else if(operacaoAtiva.galeNivel === 1) { stats.gale1++; statusTxt = "G1 GREEN"; }
+            else if(operacaoAtiva.galeNivel === 2) { stats.gale2++; statusTxt = "G2 GREEN"; }
+            
             addDetailedLog(operacaoAtiva.dir, statusTxt, "var(--green)");
             emGale = 0; operacaoAtiva = null; document.getElementById('gale-txt').innerText = "WIN ✅"; 
         } else if(emGale < 2) { 
             emGale++; sinalPendente = { dir: operacaoAtiva.dir, name: "GALE " + emGale }; 
+            stats.ativosLucro[stats.ativoAtual] = (stats.ativosLucro[stats.ativoAtual] || 0) - operacaoAtiva.valorRiscado;
         } else { 
-            audioQuaQua.play(); losses++; 
+            audioQuaQua.play(); 
+            losses++; 
+            stats.ativosLucro[stats.ativoAtual] = (stats.ativosLucro[stats.ativoAtual] || 0) - operacaoAtiva.valorRiscado;
             addDetailedLog(operacaoAtiva.dir, "LOSS", "var(--red)");
             emGale = 0; operacaoAtiva = null; document.getElementById('gale-txt').innerText = "LOSS ❌"; 
         } 
         updateFinanceUI(); document.getElementById('win-c').innerText = wins; document.getElementById('loss-c').innerText = losses; 
     }
-    
-    // CORREÇÃO DO ZOOM E ARRASTE
+    let orbOpacity = 1, orbDir = -0.08;
     function draw() {
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
         if(!current) { requestAnimationFrame(draw); return; }
         pulseOpacity += pulseDir; if(pulseOpacity <= 0.3 || pulseOpacity >= 1) pulseDir *= -1;
+        orbOpacity += orbDir; if(orbOpacity <= 0.2 || orbOpacity >= 1) orbDir *= -1;
         const all = [...history, current];
         const prices = all.flatMap(c => [c.high, c.low]);
         const maxP = Math.max(...prices), minP = Math.min(...prices), range = (maxP - minP) || 0.0001;
         const scaleY = (canvas.height * 0.7 / range) * zoomY, centerY = canvas.height / 2 + dragY, midP = (maxP + minP) / 2, offX = (canvas.width - 150) - (all.length * spacing) + dragX;
         
-        if(all.length >= 200) { ctx.beginPath(); ctx.strokeStyle = "var(--yellow)"; ctx.lineWidth = 2.5; for(let i = 200; i < all.length; i++) { const emaVal = getEMA(all.slice(0, i+1), 200); const x = offX + (i * spacing); const y = centerY + (midP - emaVal) * scaleY; if(i === 200) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke(); }
-        if(bBandsBuffer.length > 1) { ctx.beginPath(); ctx.fillStyle = "rgba(0, 162, 255, 0.02)"; for(let i = 0; i < bBandsBuffer.length; i++) { let x = offX + (bBandsBuffer[i].index * spacing); let y = centerY + (midP - bBandsBuffer[i].upper) * scaleY; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } for(let i = bBandsBuffer.length - 1; i >= 0; i--) { let x = offX + (bBandsBuffer[i].index * spacing); let y = centerY + (midP - bBandsBuffer[i].lower) * scaleY; ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); }
-        
+        if(all.length >= 200) {
+            ctx.beginPath();
+            ctx.strokeStyle = "var(--yellow)";
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([]);
+            for(let i = 200; i < all.length; i++) {
+                const emaVal = getEMA(all.slice(0, i+1), 200);
+                const x = offX + (i * spacing);
+                const y = centerY + (midP - emaVal) * scaleY;
+                if(i === 200) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        const startLookback = Math.max(0, all.length - 21);
+        const lb = all.slice(startLookback, all.length - 1);
+        if (lb.length >= 5) {
+            let bottoms = [];
+            for(let j=1; j<lb.length-1; j++) { if(lb[j].low < lb[j-1].low && lb[j].low < lb[j+1].low) bottoms.push({ price: lb[j].low, index: startLookback + j }); }
+            if(bottoms.length >= 2) {
+                bottoms.sort((a,b) => a.price - b.price);
+                let p1 = bottoms[0], p2 = bottoms.find(p => p.index > p1.index && p.price > p1.price);
+                if(p2) { ctx.strokeStyle = "rgba(0, 255, 136, 0.8)"; ctx.lineWidth = 2; ctx.setLineDash([]); let x1 = offX + p1.index * spacing, y1 = centerY + (midP - p1.price) * scaleY; let x2 = offX + p2.index * spacing, y2 = centerY + (midP - p2.price) * scaleY; let angle = Math.atan2(y2 - y1, x2 - x1); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2 + Math.cos(angle) * 3000, y2 + Math.sin(angle) * 3000); ctx.stroke(); }
+            }
+            let tops = [];
+            for(let j=1; j<lb.length-1; j++) { if(lb[j].high > lb[j-1].high && lb[j].high > lb[j+1].high) tops.push({ price: lb[j].high, index: startLookback + j }); }
+            if(tops.length >= 2) {
+                tops.sort((a,b) => b.price - a.price);
+                let t1 = tops[0], t2 = tops.find(t => t.index > t1.index && t.price < t1.price);
+                if(t2) { ctx.strokeStyle = "rgba(255, 51, 85, 0.8)"; ctx.lineWidth = 2; ctx.setLineDash([]); let x1 = offX + t1.index * spacing, y1 = centerY + (midP - t1.price) * scaleY; let x2 = offX + t2.index * spacing, y2 = centerY + (midP - t2.price) * scaleY; let angle = Math.atan2(y2 - y1, x2 - x1); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2 + Math.cos(angle) * 3000, y2 + Math.sin(angle) * 3000); ctx.stroke(); }
+            }
+        }
+
+        if(bBandsBuffer.length > 1) { ctx.beginPath(); ctx.fillStyle = "rgba(0, 162, 255, 0.02)"; for(let i = 0; i < bBandsBuffer.length; i++) { let x = offX + (bBandsBuffer[i].index * spacing); let y = centerY + (midP - bBandsBuffer[i].upper) * scaleY; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } for(let i = bBandsBuffer.length - 1; i >= 0; i--) { let x = offX + (bBandsBuffer[i].index * spacing); let y = centerY + (midP - bBandsBuffer[i].lower) * scaleY; ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); const drawBand = (type, color, dash = []) => { ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 0.8; ctx.setLineDash(dash); for(let i = 0; i < bBandsBuffer.length; i++) { let x = offX + (bBandsBuffer[i].index * spacing); let y = centerY + (midP - bBandsBuffer[i][type]) * scaleY; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke(); ctx.setLineDash([]); }; drawBand('upper', 'rgba(0, 110, 255, 0.4)'); drawBand('lower', 'rgba(0, 110, 255, 0.4)'); drawBand('mid', 'rgba(0, 110, 255, 0.2)', [3, 3]); }
+        ctx.setLineDash([5, 5]); ctx.lineWidth = 1; resistances.forEach(r => { let y = centerY + (midP - r) * scaleY; ctx.strokeStyle = "rgba(255, 51, 85, 0.4)"; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }); supports.forEach(s => { let y = centerY + (midP - s) * scaleY; ctx.strokeStyle = "rgba(0, 255, 136, 0.4)"; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); });
         all.forEach((c, i) => {
             const x = offX + (i * spacing), yO = centerY + (midP - c.open) * scaleY, yC = centerY + (midP - c.close) * scaleY, yH = centerY + (midP - c.high) * scaleY, yL = centerY + (midP - c.low) * scaleY;
-            const isGatilho = (sinalPendente && i === all.length - 1); if(isGatilho) ctx.globalAlpha = pulseOpacity; ctx.strokeStyle = c.close >= c.open ? "#00ff88" : "#ff3355"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, yH); ctx.lineTo(x, yL); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(x - (spacing*0.7)/2, Math.min(yO, yC), spacing*0.7, Math.max(2, Math.abs(yO - yC))); ctx.globalAlpha = 1.0;
+            const isGatilho = (sinalPendente && i === all.length - 1); if(isGatilho) ctx.globalAlpha = pulseOpacity; ctx.strokeStyle = c.close >= c.open ? "#00ff88" : "#ff3355"; ctx.setLineDash([]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, yH); ctx.lineTo(x, yL); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; if(isGatilho) { ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle; } ctx.fillRect(x - (spacing*0.7)/2, Math.min(yO, yC), spacing*0.7, Math.max(2, Math.abs(yO - yC))); if(isGatilho) { ctx.shadowBlur = 0; ctx.globalAlpha = 1.0; }
+            
+            if (operacaoAtiva && i === all.length - 1) { 
+                ctx.save();
+                ctx.globalAlpha = pulseOpacity; 
+                ctx.beginPath(); 
+                ctx.fillStyle = operacaoAtiva.dir === 'CALL' ? "#00ff88" : "#ff3355"; 
+                ctx.shadowBlur = 15; 
+                ctx.shadowColor = ctx.fillStyle; 
+                ctx.arc(x, yC + (operacaoAtiva.dir === 'CALL' ? 15 : -15), 6, 0, Math.PI * 2); 
+                ctx.fill(); 
+                ctx.restore();
+            }
+            
+            const f = fractals.find(fr => fr.index === i); if(f) { ctx.fillStyle = f.type === 'top' ? "#ff3355" : "#00ff88"; ctx.font = "bold 14px Arial"; ctx.textAlign = "center";ctx.fillText(f.type === 'top' ? "▼" : "▲", x, f.type === 'top' ? yH - 10 : yL + 25); if(f.label) { ctx.fillStyle = "rgba(255,255,255,0.8)"; ctx.font = "9px Arial"; ctx.fillText(f.label, x, f.type === 'top' ? yH - 25 : yL + 35); } }
         });
         const currentY = centerY + (midP - lastPrice) * scaleY; priceTag.style.top = (currentY - 15) + "px"; priceTag.style.background = lastPrice >= current.open ? "#00ff88" : "#ff3355"; priceTag.innerText = lastPrice.toFixed(midP > 10 ? 2 : 5); requestAnimationFrame(draw);
     }
-    
-    // EVENTOS DE INTERAÇÃO CORRIGIDOS
-    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; }); 
-    window.addEventListener('mousemove', e => { if(isDragging) { dragX += e.clientX - lastX; dragY += e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; } }); 
-    window.addEventListener('mouseup', () => isDragging = false); 
-    canvas.addEventListener('wheel', e => { 
-        e.preventDefault(); 
-        const zoomSpeed = 0.1;
-        if(e.deltaY < 0) { // Zoom In
-            spacing *= 1.1;
-            zoomY *= 1.1;
-        } else { // Zoom Out
-            spacing *= 0.9;
-            zoomY *= 0.9;
-        }
-        spacing = Math.min(Math.max(spacing, 2), 200);
-        zoomY = Math.min(Math.max(zoomY, 0.05), 50);
-    }, { passive: false });
-
-    // SUPORTE PARA TOUCH (CELULAR)
-    canvas.addEventListener('touchstart', e => { 
-        if(e.touches.length === 1) {
-            isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-        } else if(e.touches.length === 2) {
-            initialDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-        }
-    });
-    canvas.addEventListener('touchmove', e => {
-        if(isDragging && e.touches.length === 1) {
-            dragX += e.touches[0].clientX - lastX; dragY += e.touches[0].clientY - lastY;
-            lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
-        } else if(e.touches.length === 2) {
-            const currentDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-            const delta = currentDist / initialDist;
-            spacing = Math.min(Math.max(spacing * delta, 2), 200);
-            zoomY = Math.min(Math.max(zoomY * delta, 0.05), 50);
-            initialDist = currentDist;
-        }
-    }, { passive: false });
-    canvas.addEventListener('touchend', () => { isDragging = false; initialDist = null; });
-
+    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; }); window.addEventListener('mousemove', e => { if(isDragging) { dragX += e.clientX - lastX; dragY += e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; } }); window.addEventListener('mouseup', () => isDragging = false); canvas.addEventListener('wheel', e => { e.preventDefault(); const delta = e.deltaY > 0 ? 0.9 : 1.1; spacing = Math.min(Math.max(spacing * delta, 5), 150); zoomY = Math.min(Math.max(zoomY * delta, 0.1), 30); }, { passive: false }); canvas.addEventListener('touchstart', e => { isDragging = true; if(e.touches.length === 2) { initialDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); } else { lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; } }, { passive: false }); canvas.addEventListener('touchmove', e => { e.preventDefault(); if (isDragging) { if(e.touches.length === 2 && initialDist) { let dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); let delta = dist / initialDist; spacing = Math.min(Math.max(spacing * delta, 5), 150); zoomY = Math.min(Math.max(zoomY * delta, 0.1), 30); initialDist = dist; } else { dragX += e.touches[0].clientX - lastX; dragY += e.touches[0].clientY - lastY; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; } } }, { passive: false }); canvas.addEventListener('touchend', () => { isDragging = false; initialDist = null; });
     connect('R_100'); draw(); updateFinanceUI();
 </script>
 </body>
